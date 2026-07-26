@@ -19,8 +19,8 @@ jobs:
       - shell: pwsh
         run: |
           dotnet tool install --global wix --version 4.0.5
-          wix extension add -g WixToolset.Util.wixext
-          wix extension add -g WixToolset.Heat.wixext
+          & "$env:USERPROFILE\.dotnet\tools\wix.exe" extension add -g WixToolset.Util.wixext/4.0.5
+          & "$env:USERPROFILE\.dotnet\tools\wix.exe" extension add -g WixToolset.Heat/4.0.5
       - shell: pwsh
         env: { VERSION: '${{ inputs.maven_version || github.ref_name }}', SOURCE_URL: '${{ inputs.source_url }}' }
         run: |
