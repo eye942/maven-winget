@@ -31,18 +31,18 @@ Open a new terminal after installation. Maven needs a compatible JDK; Java is de
 Install .NET 8 SDK, WiX v4 (`dotnet tool install --global wix --version 4.0.5`), and Pester 5. Then:
 
 ```powershell
-pwsh ./scripts/Build-Installer.ps1 -MavenVersion 3.9.11 -Scope Machine
-pwsh ./scripts/Test-Installer.ps1 -MavenVersion 3.9.11
-pwsh ./scripts/Generate-WingetManifest.ps1 -MavenVersion 3.9.11 -Scope Machine
+pwsh ./scripts/Build-Installer.ps1 -MavenVersion 3.9.16 -Scope Machine
+pwsh ./scripts/Test-Installer.ps1 -MavenVersion 3.9.16
+pwsh ./scripts/Generate-WingetManifest.ps1 -MavenVersion 3.9.16 -Scope Machine
 ```
 
 The build only downloads from Apache-controlled `dlcdn.apache.org`, gets the matching official `.sha512`, and fails closed on mismatch. The release metadata records source and hashes. For a release candidate:
 
 ```powershell
-pwsh ./scripts/New-Release.ps1 -MavenVersion 3.9.11 -Scope Machine
+pwsh ./scripts/New-Release.ps1 -MavenVersion 3.9.16 -Scope Machine
 ```
 
-Submit generated files to `microsoft/winget-pkgs` using [the submission guide](docs/winget-submission.md). `winget install --manifest .\manifests\generated\Community.Maven\3.9.11` supports local testing.
+Submit generated files to `microsoft/winget-pkgs` using [the submission guide](docs/winget-submission.md). `winget install --manifest .\manifests\generated\Community.Maven\3.9.16` supports local testing.
 
 ## Security and limitations
 
