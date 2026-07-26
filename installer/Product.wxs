@@ -9,8 +9,11 @@
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="ARPHELPLINK" Value="$(var.RepositoryUrl)/issues" />
     <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize" />
-    <Feature Id="MainFeature" Title="Apache Maven" Level="1"><ComponentRef Id="UserPathComponent" /><ComponentRef Id="MachinePathComponent" /></Feature>
-    <Files Directory="INSTALLDIR" Include="!(bindpath.MavenPayload)\**" />
+    <Feature Id="MainFeature" Title="Apache Maven" Level="1">
+      <ComponentRef Id="UserPathComponent" />
+      <ComponentRef Id="MachinePathComponent" />
+      <Files Directory="INSTALLDIR" Include="!(bindpath.MavenPayload)\**" />
+    </Feature>
   </Package>
   <Fragment>
     <DirectoryRef Id="INSTALLDIR">
