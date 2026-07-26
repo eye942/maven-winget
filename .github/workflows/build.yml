@@ -25,5 +25,5 @@ jobs:
           ./scripts/Build-Installer.ps1 -MavenVersion 3.9.16
           ./scripts/Generate-WingetManifest.ps1 -MavenVersion 3.9.16
           winget validate --manifest ./manifests/generated/Community.Maven/3.9.16
-      - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with: { name: installer-artifacts, path: 'artifacts/,manifests/generated/' }
