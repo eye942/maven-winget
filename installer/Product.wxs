@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <?include Variables.wxi?>
   <Package Name="$(var.ProductName) $(var.MavenVersion)" Manufacturer="$(var.Manufacturer)" Version="$(var.MsiVersion)" UpgradeCode="$(var.UpgradeCode)" Language="1033" Scope="perUserOrMachine" InstallerVersion="500">
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." AllowSameVersionUpgrades="yes" />
@@ -15,11 +15,11 @@
   <Fragment>
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="UserPathComponent" Guid="{3F9B468B-5ED6-4EAA-A5BE-86E13D4ABE02}" Condition="NOT ALLUSERS">
-        <util:Environment Id="MavenUserBinPath" Name="PATH" Value="[INSTALLDIR]bin" Part="last" Action="set" Permanent="no" System="no" />
+        <Environment Id="MavenUserBinPath" Name="PATH" Value="[INSTALLDIR]bin" Part="last" Action="set" Permanent="no" System="no" />
         <RegistryValue Root="HKMU" Key="Software\CommunityMaven" Name="InstallPath" Value="[INSTALLDIR]" Type="string" KeyPath="yes" />
       </Component>
       <Component Id="MachinePathComponent" Guid="{597399E0-40A6-454D-9355-3E968A47C854}" Condition="ALLUSERS">
-        <util:Environment Id="MavenMachineBinPath" Name="PATH" Value="[INSTALLDIR]bin" Part="last" Action="set" Permanent="no" System="yes" />
+        <Environment Id="MavenMachineBinPath" Name="PATH" Value="[INSTALLDIR]bin" Part="last" Action="set" Permanent="no" System="yes" />
         <RegistryValue Root="HKMU" Key="Software\CommunityMaven" Name="InstallPath" Value="[INSTALLDIR]" Type="string" KeyPath="yes" />
       </Component>
     </DirectoryRef>

@@ -17,7 +17,6 @@ jobs:
         run: |
           dotnet tool install --global wix --version 7.0.0
           & "$env:USERPROFILE\.dotnet\tools\wix.exe" eula accept wix7
-          & "$env:USERPROFILE\.dotnet\tools\wix.exe" extension add -g WixToolset.Util.wixext/7.0.0
           Install-Module Pester -Force -MinimumVersion 5.0.0
       - name: Test and build
         shell: pwsh

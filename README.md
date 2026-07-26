@@ -28,11 +28,10 @@ Open a new terminal after installation. Maven needs a compatible JDK; Java is de
 
 ## Build and test
 
-Install .NET 8 SDK, WiX v7 (`dotnet tool install --global wix --version 7.0.0`), the WiX Util extension, and Pester 5. By building, maintainers accept the WiX 7 `wix7` OSMF EULA as authorized for this project. Then:
+Install .NET 8 SDK, WiX v7 (`dotnet tool install --global wix --version 7.0.0`), and Pester 5. By building, maintainers accept the WiX 7 `wix7` OSMF EULA as authorized for this project. Then:
 
 ```powershell
 wix eula accept wix7
-wix extension add -g WixToolset.Util.wixext/7.0.0
 pwsh ./scripts/Build-Installer.ps1 -MavenVersion 3.9.16
 pwsh ./scripts/Test-Installer.ps1 -MavenVersion 3.9.16
 pwsh ./scripts/Generate-WingetManifest.ps1 -MavenVersion 3.9.16
