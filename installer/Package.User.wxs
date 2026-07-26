@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Fragment>
-    <StandardDirectory Id="LocalAppDataFolder"><Directory Id="ProgramsFolder" Name="Programs"><Directory Id="MavenCompanyDir" Name="Apache Maven"><Directory Id="INSTALLDIR" Name="apache-maven-$(var.MavenVersion)" /></Directory></Directory></StandardDirectory>
-  </Fragment>
-</Wix>

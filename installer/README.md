@@ -1,3 +1,3 @@
 # Installer authoring
 
-`Prepare-Payload.ps1` emits `artifacts/payload/Components.wxs` from the verified ZIP. It invokes `heat.exe` from the pinned `WixToolset.Heat` WiX extension cache (or `WIX_HEAT_PATH`), so WiX v4 command-line builds do not depend on an unsupported `wix heat` subcommand. The source tree's placeholder fragment is never shipped.
+`Prepare-Payload.ps1` extracts the verified upstream ZIP into `artifacts/payload`. WiX 7's native `Files` element harvests the entire payload through the named `MavenPayload` bind path; no Heat-generated authoring is used.

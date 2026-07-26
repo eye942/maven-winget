@@ -3,7 +3,6 @@ on:
   workflow_dispatch:
     inputs:
       maven_version: { required: true, type: string }
-      scope: { required: true, type: choice, options: [Machine, User], default: Machine }
       prerelease: { required: false, type: boolean, default: false }
       source_url: { required: false, type: string }
   push:
@@ -22,14 +21,13 @@ jobs:
         with: { dotnet-version: 8.0.x }
       - shell: pwsh
         run: |
-          dotnet tool install --global wix --version 4.0.5
-          & "$env:USERPROFILE\.dotnet\tools\wix.exe" extension add -g WixToolset.Util.wixext/4.0.5
-          & "$env:USERPROFILE\.dotnet\tools\wix.exe" extension add -g WixToolset.Heat/4.0.5
+          dotnet tool install --global wix --version 7.0.0
+          & "$env:USERPROFILE\.dotnet\tools\wix.exe" extension add -g WixToolset.Util.wixext/7.0.0
       - shell: pwsh
         env: { VERSION: '${{ inputs.maven_version || github.ref_name }}', SOURCE_URL: '${{ inputs.source_url }}' }
         run: |
-          $v=$env:VERSION -replace '^v',''; ./scripts/Build-Installer.ps1 -MavenVersion $v -Scope '${{ inputs.scope || 'Machine' }}' -SourceUrl $env:SOURCE_URL
-          ./scripts/Generate-WingetManifest.ps1 -MavenVersion $v -Scope '${{ inputs.scope || 'Machine' }}'
+          $v=$env:VERSION -replace '^v',''; ./scripts/Build-Installer.ps1 -MavenVersion $v -SourceUrl $env:SOURCE_URL
+          ./scripts/Generate-WingetManifest.ps1 -MavenVersion $v
           Get-FileHash artifacts/*.msi -Algorithm SHA256 | Format-List | Out-File artifacts/checksums.sha256
           Get-FileHash artifacts/*.msi -Algorithm SHA512 | Format-List | Out-File artifacts/checksums.sha512
           @{ SPDXID='SPDXRef-DOCUMENT'; name='maven-community-installer'; creationInfo=@{created=(Get-Date).ToUniversalTime().ToString('o')} } | ConvertTo-Json | Set-Content artifacts/sbom.spdx.json

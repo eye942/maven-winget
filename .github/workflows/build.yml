@@ -15,16 +15,15 @@ jobs:
       - name: Install tools
         shell: pwsh
         run: |
-          dotnet tool install --global wix --version 4.0.5
-          & "$env:USERPROFILE\.dotnet\tools\wix.exe" extension add -g WixToolset.Util.wixext/4.0.5
-          & "$env:USERPROFILE\.dotnet\tools\wix.exe" extension add -g WixToolset.Heat/4.0.5
+          dotnet tool install --global wix --version 7.0.0
+          & "$env:USERPROFILE\.dotnet\tools\wix.exe" extension add -g WixToolset.Util.wixext/7.0.0
           Install-Module Pester -Force -MinimumVersion 5.0.0
       - name: Test and build
         shell: pwsh
         run: |
           ./scripts/Test-Installer.ps1 -MavenVersion 3.9.16
-          ./scripts/Build-Installer.ps1 -MavenVersion 3.9.16 -Scope Machine
-          ./scripts/Generate-WingetManifest.ps1 -MavenVersion 3.9.16 -Scope Machine
+          ./scripts/Build-Installer.ps1 -MavenVersion 3.9.16
+          ./scripts/Generate-WingetManifest.ps1 -MavenVersion 3.9.16
           winget validate --manifest ./manifests/generated/Community.Maven/3.9.16
       - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
         with: { name: installer-artifacts, path: 'artifacts/,manifests/generated/' }

@@ -7,5 +7,5 @@
     DefaultMavenVersion = '3.9.16'
     Maven3UpgradeCode = '{BC8F546E-66E0-43B4-BF19-0915F3BF5D98}'
     Maven4UpgradeCode = '{5FF0CB80-BD60-432D-B30F-84564FF8253E}'
-    WixVersion = '4.0.5'
+    WixVersion = '7.0.0'
 }

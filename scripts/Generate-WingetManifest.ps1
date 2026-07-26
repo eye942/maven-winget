@@ -1,7 +1,7 @@
-[CmdletBinding()] param([Parameter(Mandatory)][string]$MavenVersion,[ValidateSet('Machine','User')][string]$Scope='Machine',[string]$MsiPath,[string]$ReleaseUrl)
+[CmdletBinding()] param([Parameter(Mandatory)][string]$MavenVersion,[string]$MsiPath,[string]$ReleaseUrl)
 Set-StrictMode -Version Latest;$ErrorActionPreference='Stop';Import-Module "$PSScriptRoot/MavenInstaller.Common.psm1" -Force
-$root=Get-RepositoryRoot;$cfg=Get-RepositoryConfig;if(!$MsiPath){$MsiPath=Join-Path $root "artifacts/maven-community-$MavenVersion-$($Scope.ToLower())-x64.msi"};if(!(Test-Path $MsiPath)){throw "MSI not found: $MsiPath"};if(!$ReleaseUrl){$ReleaseUrl="$($cfg.RepositoryUrl)/releases/download/v$MavenVersion/$(Split-Path $MsiPath -Leaf)"}
-$dir=Join-Path $root "manifests/generated/$($cfg.PackageIdentifier)/$MavenVersion";New-Item -ItemType Directory -Force -Path $dir|Out-Null;$hash=(Get-FileHash $MsiPath -Algorithm SHA256).Hash;$date=(Get-Date).ToUniversalTime().ToString('yyyy-MM-dd');$scopeText=$Scope.ToLower()
+$root=Get-RepositoryRoot;$cfg=Get-RepositoryConfig;if(!$MsiPath){$MsiPath=Join-Path $root "artifacts/maven-community-$MavenVersion-x64.msi"};if(!(Test-Path $MsiPath)){throw "MSI not found: $MsiPath"};if(!$ReleaseUrl){$ReleaseUrl="$($cfg.RepositoryUrl)/releases/download/v$MavenVersion/$(Split-Path $MsiPath -Leaf)"}
+$dir=Join-Path $root "manifests/generated/$($cfg.PackageIdentifier)/$MavenVersion";New-Item -ItemType Directory -Force -Path $dir|Out-Null;$hash=(Get-FileHash $MsiPath -Algorithm SHA256).Hash;$date=(Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
 @"
 PackageIdentifier: $($cfg.PackageIdentifier)
 PackageVersion: $MavenVersion
@@ -31,7 +31,6 @@ ManifestVersion: 1.6.0
 PackageIdentifier: $($cfg.PackageIdentifier)
 PackageVersion: $MavenVersion
 InstallerType: wix
-Scope: $scopeText
 UpgradeBehavior: install
 Commands:
 - mvn
@@ -41,7 +40,16 @@ Installers:
   InstallerUrl: $ReleaseUrl
   InstallerSha256: $hash
   InstallerType: wix
-  Scope: $scopeText
+  Scope: user
+  InstallerSwitches:
+    Custom: ALLUSERS=2 MSIINSTALLPERUSER=1
+- Architecture: x64
+  InstallerUrl: $ReleaseUrl
+  InstallerSha256: $hash
+  InstallerType: wix
+  Scope: machine
+  InstallerSwitches:
+    Custom: ALLUSERS=1 MSIINSTALLPERUSER=""
 ManifestType: installer
 ManifestVersion: 1.6.0
 "@|Set-Content "$dir/$($cfg.PackageIdentifier).installer.yaml"
