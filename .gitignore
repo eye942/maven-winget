@@ -1,0 +1,9 @@
+artifacts/
+.payload/
+TestResults/
+*.msi
+*.wixpdb
+*.zip
+*.sbom.json
+manifests/generated/*
+!manifests/generated/.gitkeep

@@ -1,0 +1,20 @@
+name: discover Maven updates
+on:
+  schedule: [{ cron: '23 6 * * 1' }]
+  workflow_dispatch:
+permissions: { contents: read, pull-requests: write }
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Check Apache metadata
+        id: update
+        run: |
+          v=$(curl --fail --silent --show-error https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml | sed -n 's:.*<release>\(.*\)</release>.*:\1:p')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - uses: peter-evans/create-pull-request@70a7d45d5a1a3a205ec28020775c0f9042c1e7f0
+        with:
+          title: 'chore: review Apache Maven ${{ steps.update.outputs.version }}'
+          body: 'Detected from official Maven Central metadata. Review upstream distribution URL/checksum before release.'
+          branch: automation/maven-update

@@ -1,0 +1,33 @@
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      maven_version: { required: true, type: string }
+      scope: { required: true, type: choice, options: [Machine, User], default: Machine }
+      prerelease: { required: false, type: boolean, default: false }
+      source_url: { required: false, type: string }
+  push:
+    tags: ['v*']
+permissions: { contents: write }
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with: { dotnet-version: 8.0.x }
+      - shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 4.0.5
+          wix extension add -g WixToolset.Util.wixext
+          wix extension add -g WixToolset.Heat.wixext
+      - shell: pwsh
+        env: { VERSION: '${{ inputs.maven_version || github.ref_name }}', SOURCE_URL: '${{ inputs.source_url }}' }
+        run: |
+          $v=$env:VERSION -replace '^v',''; ./scripts/Build-Installer.ps1 -MavenVersion $v -Scope '${{ inputs.scope || 'Machine' }}' -SourceUrl $env:SOURCE_URL
+          ./scripts/Generate-WingetManifest.ps1 -MavenVersion $v -Scope '${{ inputs.scope || 'Machine' }}'
+          Get-FileHash artifacts/*.msi -Algorithm SHA256 | Format-List | Out-File artifacts/checksums.sha256
+          Get-FileHash artifacts/*.msi -Algorithm SHA512 | Format-List | Out-File artifacts/checksums.sha512
+          @{ SPDXID='SPDXRef-DOCUMENT'; name='maven-community-installer'; creationInfo=@{created=(Get-Date).ToUniversalTime().ToString('o')} } | ConvertTo-Json | Set-Content artifacts/sbom.spdx.json
+      - uses: softprops/action-gh-release@6cbd405e2c4e67f4c6b5114b6ee0c5d5b8e14b79
+        with: { prerelease: '${{ inputs.prerelease }}', files: 'artifacts/*,manifests/generated/**', body: 'Community-maintained MSI. Upstream archive verification and hashes are included in release-metadata.json.' }

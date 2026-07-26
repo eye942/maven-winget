@@ -1,0 +1,2 @@
+[CmdletBinding()] param([Parameter(Mandatory)][string]$MavenVersion)
+Set-StrictMode -Version Latest;$ErrorActionPreference='Stop';Import-Module "$PSScriptRoot/MavenInstaller.Common.psm1" -Force;Assert-MavenVersion $MavenVersion;$path=Join-Path (Get-RepositoryRoot) 'RepositoryConfig.psd1';$raw=Get-Content $path -Raw;$raw=[regex]::Replace($raw,"DefaultMavenVersion = '[^']+'","DefaultMavenVersion = '$MavenVersion'");Set-Content $path $raw

@@ -1,0 +1,11 @@
+name: validate winget
+on: [pull_request, workflow_dispatch]
+permissions: { contents: read }
+jobs:
+  validate:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - shell: pwsh
+        run: |
+          if (Test-Path manifests/generated/Community.Maven) { winget validate --manifest manifests/generated/Community.Maven }

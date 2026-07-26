@@ -1,0 +1,2 @@
+[CmdletBinding()] param([Parameter(Mandatory)][string]$WingetPkgsPath,[Parameter(Mandatory)][string]$MavenVersion)
+Set-StrictMode -Version Latest;$ErrorActionPreference='Stop';$root=Split-Path $PSScriptRoot -Parent;$src=Join-Path $root "manifests/generated/Community.Maven/$MavenVersion";if(!(Test-Path $src)){throw 'Generate manifests first.'};$dest=Join-Path $WingetPkgsPath "manifests/c/Community/Maven/$MavenVersion";New-Item -ItemType Directory -Force -Path $dest|Out-Null;Copy-Item "$src/*" $dest -Force;Write-Output $dest

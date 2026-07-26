@@ -1,0 +1,26 @@
+name: build
+on: [pull_request, push, workflow_dispatch]
+permissions: { contents: read }
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with: { dotnet-version: 8.0.x }
+      - name: Install tools
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 4.0.5
+          wix extension add -g WixToolset.Util.wixext
+          wix extension add -g WixToolset.Heat.wixext
+          Install-Module Pester -Force -MinimumVersion 5.0.0
+      - name: Test and build
+        shell: pwsh
+        run: |
+          ./scripts/Test-Installer.ps1 -MavenVersion 3.9.11
+          ./scripts/Build-Installer.ps1 -MavenVersion 3.9.11 -Scope Machine
+          ./scripts/Generate-WingetManifest.ps1 -MavenVersion 3.9.11 -Scope Machine
+          winget validate --manifest ./manifests/generated/Community.Maven/3.9.11
+      - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        with: { name: installer-artifacts, path: 'artifacts/,manifests/generated/' }
