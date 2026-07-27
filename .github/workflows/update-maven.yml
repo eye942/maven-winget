@@ -28,6 +28,7 @@ jobs:
         run: ./scripts/Update-Version.ps1 -MavenVersion '${{ steps.release.outputs.version }}' -Channel '${{ matrix.channel }}' -SourceUrl '${{ steps.release.outputs.source_url }}' -PublishDate '${{ steps.release.outputs.publish_date }}'
       - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
         with:
+          token: ${{ secrets.RELEASE_PR_TOKEN }}
           branch: automation/maven-${{ matrix.channel }}
           delete-branch: true
           title: 'chore(${{ matrix.channel }}): review Apache Maven ${{ steps.release.outputs.version }}'
