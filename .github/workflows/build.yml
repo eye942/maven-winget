@@ -26,4 +26,9 @@ jobs:
           ./scripts/Generate-WingetManifest.ps1 -MavenVersion 3.9.16 -Channel stable
           winget validate --manifest ./manifests/generated/eye942.Maven/3.9.16
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with: { name: installer-artifacts, path: 'artifacts/,manifests/generated/' }
+        with:
+          name: installer-artifacts
+          path: |
+            artifacts/
+            manifests/generated/
+          if-no-files-found: error
