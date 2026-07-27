@@ -4,7 +4,7 @@
   <Package Name="$(var.ProductName) $(var.MavenVersion)" Manufacturer="$(var.Manufacturer)" Version="$(var.MsiVersion)" UpgradeCode="$(var.UpgradeCode)" Language="1033" Scope="perUserOrMachine" InstallerVersion="500">
     <!-- All channels share this upgrade family. A deliberate channel switch may
          have a lower MSI version, so it must replace rather than coexist. -->
-    <MajorUpgrade AllowDowngrades="yes" AllowSameVersionUpgrades="yes" />
+    <MajorUpgrade AllowDowngrades="yes" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
     <Property Id="ARPCOMMENTS" Value="Independently maintained installer. Not endorsed or supported by the Apache Software Foundation." />
     <Property Id="ARPURLINFOABOUT" Value="$(var.RepositoryUrl)" />
