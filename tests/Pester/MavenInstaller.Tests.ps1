@@ -43,6 +43,14 @@ Describe 'Maven release helpers' {
    $releaseWorkflow | Should -Not -Match '(?m)^\s*pull_request:'
    (Get-Content -Raw "$PSScriptRoot/../../.github/workflows/validate-winget.yml") | Should -Not -Match 'WINGET_CREATE_GITHUB_TOKEN'
  }
+ It 'prepares draft releases only from trusted known automation branches' {
+   $prepareWorkflow = Get-Content -Raw "$PSScriptRoot/../../.github/workflows/prepare-release.yml"
+   $prepareWorkflow | Should -Match 'head\.repo\.full_name == github\.repository'
+   $prepareWorkflow | Should -Match "head\.ref == 'automation/maven-stable'"
+   $prepareWorkflow | Should -Match "head\.ref == 'automation/maven-maven3-preview'"
+   $prepareWorkflow | Should -Match "head\.ref == 'automation/maven-maven4-preview'"
+   $prepareWorkflow | Should -Not -Match 'startsWith\(github\.event\.pull_request\.head\.ref'
+ }
  It 'rejects a version in the wrong channel' { { Get-MavenReleaseInfo '3.9.16' -Channel 'maven3-preview' } | Should -Throw }
  It 'parses the Apache publish date and a stable ZIP' {
    $html='<li id="publishDate"><span>Last Published:</span> 2026-07-01</li><a href="https://dlcdn.apache.org/maven/maven-3/3.9.16/binaries/apache-maven-3.9.16-bin.zip">ZIP</a>'

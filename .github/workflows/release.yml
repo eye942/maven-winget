@@ -25,15 +25,19 @@ jobs:
           & "$env:USERPROFILE\.dotnet\tools\wix.exe" eula accept wix7
       - name: Build from verified Apache archive
         shell: pwsh
+        env:
+          MAVEN_CHANNEL: ${{ inputs.channel }}
+          MAVEN_SOURCE_URL: ${{ inputs.source_url }}
+          MAVEN_VERSION: ${{ inputs.maven_version }}
         run: |
-          ./scripts/Build-Installer.ps1 -MavenVersion '${{ inputs.maven_version }}' -Channel '${{ inputs.channel }}' -SourceUrl '${{ inputs.source_url }}'
-          ./scripts/Generate-WingetManifest.ps1 -MavenVersion '${{ inputs.maven_version }}' -Channel '${{ inputs.channel }}'
-          ./scripts/Submit-WingetManifest.ps1 -MavenVersion '${{ inputs.maven_version }}' -Channel '${{ inputs.channel }}' -DryRun | Format-List | Out-String | Write-Host
+          ./scripts/Build-Installer.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -SourceUrl $env:MAVEN_SOURCE_URL
+          ./scripts/Generate-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL
+          ./scripts/Submit-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -DryRun | Format-List | Out-String | Write-Host
           Get-FileHash artifacts/*.msi -Algorithm SHA256 | Format-List | Out-File artifacts/checksums.sha256
           Get-FileHash artifacts/*.msi -Algorithm SHA512 | Format-List | Out-File artifacts/checksums.sha512
           @{ SPDXID='SPDXRef-DOCUMENT'; name='maven-community-installer'; creationInfo=@{created=(Get-Date).ToUniversalTime().ToString('o')} } | ConvertTo-Json | Set-Content artifacts/sbom.spdx.json
           Import-Module ./scripts/MavenInstaller.Common.psm1 -Force
-          $tag = Get-ReleaseTag '${{ inputs.maven_version }}' '${{ inputs.channel }}'
+          $tag = Get-ReleaseTag $env:MAVEN_VERSION $env:MAVEN_CHANNEL
           "tag=$tag" >> $env:GITHUB_OUTPUT
         id: build
       - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
@@ -71,6 +75,8 @@ jobs:
       - name: Update and submit WinGet manifest
         shell: pwsh
         env:
+          MAVEN_CHANNEL: ${{ inputs.channel }}
+          MAVEN_VERSION: ${{ inputs.maven_version }}
           WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
         run: |
-          ./scripts/Submit-WingetManifest.ps1 -MavenVersion '${{ inputs.maven_version }}' -Channel '${{ inputs.channel }}' -WingetCreatePath '${{ steps.wingetcreate.outputs.path }}'
+          ./scripts/Submit-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -WingetCreatePath '${{ steps.wingetcreate.outputs.path }}'
