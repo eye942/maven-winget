@@ -1,6 +1,9 @@
 name: build
 on: [pull_request, push, workflow_dispatch]
 permissions: { contents: read }
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !github.ref_protected }}
 jobs:
   build:
     runs-on: windows-2025
