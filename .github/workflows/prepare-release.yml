@@ -5,11 +5,16 @@ on:
 permissions: { contents: write }
 jobs:
   prepare:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'automation/maven-')
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.pull_request.head.ref == 'automation/maven-stable' ||
+       github.event.pull_request.head.ref == 'automation/maven-maven3-preview' ||
+       github.event.pull_request.head.ref == 'automation/maven-maven4-preview')
     runs-on: windows-2025
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with: { egress-policy: audit }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -29,20 +34,24 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with: { dotnet-version: 8.0.x }
       - shell: pwsh
+        env:
+          MAVEN_CHANNEL: ${{ steps.candidate.outputs.channel }}
+          MAVEN_SOURCE_URL: ${{ steps.candidate.outputs.source_url }}
+          MAVEN_VERSION: ${{ steps.candidate.outputs.version }}
         run: |
           dotnet tool install --global wix --version 7.0.0
           & "$env:USERPROFILE\.dotnet\tools\wix.exe" eula accept wix7
-          ./scripts/Build-Installer.ps1 -MavenVersion '${{ steps.candidate.outputs.version }}' -Channel '${{ steps.candidate.outputs.channel }}' -SourceUrl '${{ steps.candidate.outputs.source_url }}'
-          ./scripts/Generate-WingetManifest.ps1 -MavenVersion '${{ steps.candidate.outputs.version }}' -Channel '${{ steps.candidate.outputs.channel }}'
-          ./scripts/Submit-WingetManifest.ps1 -MavenVersion '${{ steps.candidate.outputs.version }}' -Channel '${{ steps.candidate.outputs.channel }}' -DryRun | Format-List | Out-String | Write-Host
+          ./scripts/Build-Installer.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -SourceUrl $env:MAVEN_SOURCE_URL
+          ./scripts/Generate-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL
+          ./scripts/Submit-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -DryRun | Format-List | Out-String | Write-Host
           Get-FileHash artifacts/*.msi -Algorithm SHA256 | Format-List | Out-File artifacts/checksums.sha256
           Get-FileHash artifacts/*.msi -Algorithm SHA512 | Format-List | Out-File artifacts/checksums.sha512
           @{ SPDXID='SPDXRef-DOCUMENT'; name='maven-community-installer'; creationInfo=@{created=(Get-Date).ToUniversalTime().ToString('o')} } | ConvertTo-Json | Set-Content artifacts/sbom.spdx.json
           Import-Module ./scripts/MavenInstaller.Common.psm1 -Force
-          $tag = Get-ReleaseTag '${{ steps.candidate.outputs.version }}' '${{ steps.candidate.outputs.channel }}'
+          $tag = Get-ReleaseTag $env:MAVEN_VERSION $env:MAVEN_CHANNEL
           "tag=$tag" >> $env:GITHUB_OUTPUT
         id: build
-      - uses: softprops/action-gh-release@6cbd405e2c4e67f4c6b5114b6ee0c5d5b8e14b79
+      - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
         with:
           tag_name: ${{ steps.build.outputs.tag }}
           prerelease: ${{ steps.candidate.outputs.channel != 'stable' }}
