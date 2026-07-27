@@ -26,7 +26,7 @@ jobs:
       - name: Record the candidate
         shell: pwsh
         run: ./scripts/Update-Version.ps1 -MavenVersion '${{ steps.release.outputs.version }}' -Channel '${{ matrix.channel }}' -SourceUrl '${{ steps.release.outputs.source_url }}' -PublishDate '${{ steps.release.outputs.publish_date }}'
-      - uses: peter-evans/create-pull-request@70a7d45d5a1a3a205ec28020775c0f9042c1e7f0
+      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
         with:
           branch: automation/maven-${{ matrix.channel }}
           delete-branch: true
