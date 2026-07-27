@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-2025
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with: { egress-policy: audit }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
@@ -36,7 +36,7 @@ jobs:
           $tag = Get-ReleaseTag '${{ inputs.maven_version }}' '${{ inputs.channel }}'
           "tag=$tag" >> $env:GITHUB_OUTPUT
         id: build
-      - uses: softprops/action-gh-release@6cbd405e2c4e67f4c6b5114b6ee0c5d5b8e14b79
+      - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
         with:
           tag_name: ${{ steps.build.outputs.tag }}
           prerelease: ${{ inputs.channel != 'stable' }}
@@ -52,7 +52,7 @@ jobs:
     permissions: { contents: read }
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with: { egress-policy: audit }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
