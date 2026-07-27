@@ -24,7 +24,13 @@
       "lastPublished": null
     },
     "maven4-preview": {
-      "lastDiscovered": null,
+      "lastDiscovered": {
+        "version": "4.0.0-rc-5",
+        "sourceUrl": "https://dlcdn.apache.org/maven/maven-4/4.0.0-rc-5/binaries/apache-maven-4.0.0-rc-5-bin.zip",
+        "checksumUrl": "https://dlcdn.apache.org/maven/maven-4/4.0.0-rc-5/binaries/apache-maven-4.0.0-rc-5-bin.zip.sha512",
+        "publishDate": "2026-07-27",
+        "discoveredAt": "2026-07-27T08:46:16.4010784Z"
+      },
       "lastVerified": null,
       "lastPublished": null
     }
