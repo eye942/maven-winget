@@ -2,7 +2,9 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <?include Variables.wxi?>
   <Package Name="$(var.ProductName) $(var.MavenVersion)" Manufacturer="$(var.Manufacturer)" Version="$(var.MsiVersion)" UpgradeCode="$(var.UpgradeCode)" Language="1033" Scope="perUserOrMachine" InstallerVersion="500">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." AllowSameVersionUpgrades="yes" />
+    <!-- All channels share this upgrade family. A deliberate channel switch may
+         have a lower MSI version, so it must replace rather than coexist. -->
+    <MajorUpgrade AllowDowngrades="yes" AllowSameVersionUpgrades="yes" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
     <Property Id="ARPCOMMENTS" Value="Independently maintained installer. Not endorsed or supported by the Apache Software Foundation." />
     <Property Id="ARPURLINFOABOUT" Value="$(var.RepositoryUrl)" />
@@ -19,11 +21,11 @@
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="UserPathComponent" Guid="{3F9B468B-5ED6-4EAA-A5BE-86E13D4ABE02}" Condition="NOT ALLUSERS">
         <Environment Id="MavenUserBinPath" Name="PATH" Value="[INSTALLDIR]bin" Part="last" Action="set" Permanent="no" System="no" />
-        <RegistryValue Root="HKMU" Key="Software\CommunityMaven" Name="InstallPath" Value="[INSTALLDIR]" Type="string" KeyPath="yes" />
+        <RegistryValue Root="HKMU" Key="Software\eye942\Maven" Name="InstallPath" Value="[INSTALLDIR]" Type="string" KeyPath="yes" />
       </Component>
       <Component Id="MachinePathComponent" Guid="{597399E0-40A6-454D-9355-3E968A47C854}" Condition="ALLUSERS">
         <Environment Id="MavenMachineBinPath" Name="PATH" Value="[INSTALLDIR]bin" Part="last" Action="set" Permanent="no" System="yes" />
-        <RegistryValue Root="HKMU" Key="Software\CommunityMaven" Name="InstallPath" Value="[INSTALLDIR]" Type="string" KeyPath="yes" />
+        <RegistryValue Root="HKMU" Key="Software\eye942\Maven" Name="InstallPath" Value="[INSTALLDIR]" Type="string" KeyPath="yes" />
       </Component>
     </DirectoryRef>
   </Fragment>

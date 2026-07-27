@@ -1,35 +1,76 @@
-name: release
+name: publish verified Maven release
 on:
   workflow_dispatch:
     inputs:
-      maven_version: { required: true, type: string }
-      prerelease: { required: false, type: boolean, default: false }
-      source_url: { required: false, type: string }
-  push:
-    tags: ['v*']
+      maven_version: { required: true, type: string, description: 'Exact upstream Maven version' }
+      channel: { required: true, type: choice, options: [stable, maven3-preview, maven4-preview], default: stable }
+      source_url: { required: false, type: string, description: 'Official dlcdn.apache.org ZIP override' }
 permissions: { contents: write }
 jobs:
   release:
+    outputs:
+      tag: ${{ steps.build.outputs.tag }}
     runs-on: windows-2025
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
-        with:
-          egress-policy: audit
+        with: { egress-policy: audit }
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
         with: { dotnet-version: 8.0.x }
-      - shell: pwsh
+      - name: Install WiX
+        shell: pwsh
         run: |
           dotnet tool install --global wix --version 7.0.0
           & "$env:USERPROFILE\.dotnet\tools\wix.exe" eula accept wix7
-      - shell: pwsh
-        env: { VERSION: '${{ inputs.maven_version || github.ref_name }}', SOURCE_URL: '${{ inputs.source_url }}' }
+      - name: Build from verified Apache archive
+        shell: pwsh
         run: |
-          $v=$env:VERSION -replace '^v',''; ./scripts/Build-Installer.ps1 -MavenVersion $v -SourceUrl $env:SOURCE_URL
-          ./scripts/Generate-WingetManifest.ps1 -MavenVersion $v
+          ./scripts/Build-Installer.ps1 -MavenVersion '${{ inputs.maven_version }}' -Channel '${{ inputs.channel }}' -SourceUrl '${{ inputs.source_url }}'
+          ./scripts/Generate-WingetManifest.ps1 -MavenVersion '${{ inputs.maven_version }}' -Channel '${{ inputs.channel }}'
+          ./scripts/Submit-WingetManifest.ps1 -MavenVersion '${{ inputs.maven_version }}' -Channel '${{ inputs.channel }}' -DryRun | Format-List | Out-String | Write-Host
           Get-FileHash artifacts/*.msi -Algorithm SHA256 | Format-List | Out-File artifacts/checksums.sha256
           Get-FileHash artifacts/*.msi -Algorithm SHA512 | Format-List | Out-File artifacts/checksums.sha512
           @{ SPDXID='SPDXRef-DOCUMENT'; name='maven-community-installer'; creationInfo=@{created=(Get-Date).ToUniversalTime().ToString('o')} } | ConvertTo-Json | Set-Content artifacts/sbom.spdx.json
+          Import-Module ./scripts/MavenInstaller.Common.psm1 -Force
+          $tag = Get-ReleaseTag '${{ inputs.maven_version }}' '${{ inputs.channel }}'
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+        id: build
       - uses: softprops/action-gh-release@6cbd405e2c4e67f4c6b5114b6ee0c5d5b8e14b79
-        with: { prerelease: '${{ inputs.prerelease }}', files: 'artifacts/*,manifests/generated/**', body: 'Community-maintained MSI. Upstream archive verification and hashes are included in release-metadata.json.' }
+        with:
+          tag_name: ${{ steps.build.outputs.tag }}
+          prerelease: ${{ inputs.channel != 'stable' }}
+          draft: false
+          files: |
+            artifacts/*
+            manifests/generated/**
+          body: 'Community-maintained MSI. Upstream archive verification and hashes are included in release-metadata.json.'
+  winget-submission:
+    needs: release
+    runs-on: windows-2025
+    environment: winget-submission
+    permissions: { contents: read }
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with: { egress-policy: audit }
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with: { dotnet-version: 6.0.x }
+      - name: Download and verify WingetCreate
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/microsoft/winget-create/releases/download/v1.12.8.0/wingetcreate.exe'
+          $expectedHash = '8BD738851B524885410112678E3771B341C5C716DE60FBBECB88AB0A363ED85D'
+          $path = Join-Path $env:RUNNER_TEMP 'wingetcreate.exe'
+          Invoke-WebRequest -Uri $url -OutFile $path
+          $actualHash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+          if ($actualHash -ne $expectedHash) { throw "WingetCreate SHA-256 mismatch. Expected $expectedHash; got $actualHash." }
+          "path=$path" >> $env:GITHUB_OUTPUT
+        id: wingetcreate
+      - name: Update and submit WinGet manifest
+        shell: pwsh
+        env:
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
+        run: |
+          ./scripts/Submit-WingetManifest.ps1 -MavenVersion '${{ inputs.maven_version }}' -Channel '${{ inputs.channel }}' -WingetCreatePath '${{ steps.wingetcreate.outputs.path }}'

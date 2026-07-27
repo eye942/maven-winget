@@ -1,34 +1,36 @@
-[CmdletBinding()] param([Parameter(Mandatory)][string]$MavenVersion,[string]$MsiPath,[string]$ReleaseUrl)
+[CmdletBinding()] param([Parameter(Mandatory)][string]$MavenVersion,[ValidateSet('stable','maven3-preview','maven4-preview')][string]$Channel,[string]$MsiPath,[string]$ReleaseUrl)
 Set-StrictMode -Version Latest;$ErrorActionPreference='Stop';Import-Module "$PSScriptRoot/MavenInstaller.Common.psm1" -Force
-$root=Get-RepositoryRoot;$cfg=Get-RepositoryConfig;if(!$MsiPath){$MsiPath=Join-Path $root "artifacts/maven-community-$MavenVersion-x64.msi"};if(!(Test-Path $MsiPath)){throw "MSI not found: $MsiPath"};if(!$ReleaseUrl){$ReleaseUrl="$($cfg.RepositoryUrl)/releases/download/v$MavenVersion/$(Split-Path $MsiPath -Leaf)"}
-$dir=Join-Path $root "manifests/generated/$($cfg.PackageIdentifier)/$MavenVersion";New-Item -ItemType Directory -Force -Path $dir|Out-Null;$hash=(Get-FileHash $MsiPath -Algorithm SHA256).Hash;$date=(Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
+if(-not $Channel){$Channel=Get-MavenChannelForVersion $MavenVersion}
+$root=Get-RepositoryRoot;$cfg=Get-RepositoryConfig;$id=Get-PackageIdentifier $Channel;$product=Get-ProductName $Channel;$tag=Get-ReleaseTag $MavenVersion $Channel
+if(!$MsiPath){$MsiPath=Join-Path $root "artifacts/maven-community-$Channel-$MavenVersion-x64.msi"};if(!(Test-Path $MsiPath)){throw "MSI not found: $MsiPath"};if(!$ReleaseUrl){$ReleaseUrl="$($cfg.RepositoryUrl)/releases/download/$tag/$(Split-Path $MsiPath -Leaf)"}
+$dir=Join-Path $root "manifests/generated/$id/$MavenVersion";New-Item -ItemType Directory -Force -Path $dir|Out-Null;$hash=(Get-FileHash $MsiPath -Algorithm SHA256).Hash;$date=(Get-Date).ToUniversalTime().ToString('yyyy-MM-dd');$channelNote=if($Channel -eq 'stable'){'Stable Maven channel.'}else{"$Channel channel; this is a Maven preview release."}
 @"
-PackageIdentifier: $($cfg.PackageIdentifier)
+PackageIdentifier: $id
 PackageVersion: $MavenVersion
 DefaultLocale: en-US
 ManifestType: version
 ManifestVersion: 1.6.0
-"@|Set-Content "$dir/$($cfg.PackageIdentifier).yaml"
+"@|Set-Content "$dir/$id.yaml"
 @"
-PackageIdentifier: $($cfg.PackageIdentifier)
+PackageIdentifier: $id
 PackageVersion: $MavenVersion
 PackageLocale: en-US
 Publisher: $($cfg.Publisher)
 PublisherUrl: $($cfg.RepositoryUrl)
-PackageName: $($cfg.PackageName)
+PackageName: $product
 PackageUrl: $($cfg.RepositoryUrl)
 License: Apache-2.0
 LicenseUrl: $($cfg.LicenseUrl)
 ShortDescription: Community-maintained MSI installer for Apache Maven.
 Description: Independently maintained Windows MSI packaging for Apache Maven. Not endorsed or supported by the Apache Software Foundation.
-ReleaseNotesUrl: $($cfg.RepositoryUrl)/releases/tag/v$MavenVersion
+ReleaseNotesUrl: $($cfg.RepositoryUrl)/releases/tag/$tag
 ReleaseDate: $date
-InstallationNotes: A compatible JDK is required. This installer does not bundle Java.
+InstallationNotes: A compatible JDK is required. This installer does not bundle Java. $channelNote Installing this channel replaces another active Maven channel in the same scope.
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0
-"@|Set-Content "$dir/$($cfg.PackageIdentifier).locale.en-US.yaml"
+"@|Set-Content "$dir/$id.locale.en-US.yaml"
 @"
-PackageIdentifier: $($cfg.PackageIdentifier)
+PackageIdentifier: $id
 PackageVersion: $MavenVersion
 InstallerType: wix
 UpgradeBehavior: install
@@ -52,5 +54,5 @@ Installers:
     Custom: ALLUSERS=1 MSIINSTALLPERUSER=""
 ManifestType: installer
 ManifestVersion: 1.6.0
-"@|Set-Content "$dir/$($cfg.PackageIdentifier).installer.yaml"
+"@|Set-Content "$dir/$id.installer.yaml"
 Write-Output $dir

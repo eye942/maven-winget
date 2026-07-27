@@ -22,8 +22,8 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/Test-Installer.ps1 -MavenVersion 3.9.16
-          ./scripts/Build-Installer.ps1 -MavenVersion 3.9.16
-          ./scripts/Generate-WingetManifest.ps1 -MavenVersion 3.9.16
-          winget validate --manifest ./manifests/generated/Community.Maven/3.9.16
+          ./scripts/Build-Installer.ps1 -MavenVersion 3.9.16 -Channel stable
+          ./scripts/Generate-WingetManifest.ps1 -MavenVersion 3.9.16 -Channel stable
+          winget validate --manifest ./manifests/generated/eye942.Maven/3.9.16
       - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
         with: { name: installer-artifacts, path: 'artifacts/,manifests/generated/' }

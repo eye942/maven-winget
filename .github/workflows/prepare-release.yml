@@ -1,0 +1,52 @@
+name: prepare Maven draft release
+on:
+  pull_request:
+    types: [closed]
+permissions: { contents: write }
+jobs:
+  prepare:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'automation/maven-')
+    runs-on: windows-2025
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with: { egress-policy: audit }
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: { ref: ${{ github.event.pull_request.merge_commit_sha }} }
+      - name: Read merged channel candidate
+        id: candidate
+        shell: pwsh
+        run: |
+          $branch='${{ github.event.pull_request.head.ref }}'
+          $channel = if ($branch -eq 'automation/maven-maven3-preview') {'maven3-preview'} elseif ($branch -eq 'automation/maven-maven4-preview') {'maven4-preview'} else {'stable'}
+          $state=Get-Content -Raw config/ReleaseState.json | ConvertFrom-Json
+          $candidate=$state.channels.$channel.lastDiscovered
+          if ($null -eq $candidate -or [string]::IsNullOrWhiteSpace($candidate.version)) { throw "No merged candidate exists for $channel." }
+          "channel=$channel" >> $env:GITHUB_OUTPUT
+          "version=$($candidate.version)" >> $env:GITHUB_OUTPUT
+          "source_url=$($candidate.sourceUrl)" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with: { dotnet-version: 8.0.x }
+      - shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 7.0.0
+          & "$env:USERPROFILE\.dotnet\tools\wix.exe" eula accept wix7
+          ./scripts/Build-Installer.ps1 -MavenVersion '${{ steps.candidate.outputs.version }}' -Channel '${{ steps.candidate.outputs.channel }}' -SourceUrl '${{ steps.candidate.outputs.source_url }}'
+          ./scripts/Generate-WingetManifest.ps1 -MavenVersion '${{ steps.candidate.outputs.version }}' -Channel '${{ steps.candidate.outputs.channel }}'
+          ./scripts/Submit-WingetManifest.ps1 -MavenVersion '${{ steps.candidate.outputs.version }}' -Channel '${{ steps.candidate.outputs.channel }}' -DryRun | Format-List | Out-String | Write-Host
+          Get-FileHash artifacts/*.msi -Algorithm SHA256 | Format-List | Out-File artifacts/checksums.sha256
+          Get-FileHash artifacts/*.msi -Algorithm SHA512 | Format-List | Out-File artifacts/checksums.sha512
+          @{ SPDXID='SPDXRef-DOCUMENT'; name='maven-community-installer'; creationInfo=@{created=(Get-Date).ToUniversalTime().ToString('o')} } | ConvertTo-Json | Set-Content artifacts/sbom.spdx.json
+          Import-Module ./scripts/MavenInstaller.Common.psm1 -Force
+          $tag = Get-ReleaseTag '${{ steps.candidate.outputs.version }}' '${{ steps.candidate.outputs.channel }}'
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+        id: build
+      - uses: softprops/action-gh-release@6cbd405e2c4e67f4c6b5114b6ee0c5d5b8e14b79
+        with:
+          tag_name: ${{ steps.build.outputs.tag }}
+          prerelease: ${{ steps.candidate.outputs.channel != 'stable' }}
+          draft: true
+          files: |
+            artifacts/*
+            manifests/generated/**
+          body: 'Draft release prepared from a verified Apache archive. Review artifacts, then run the publish verified Maven release workflow.'
