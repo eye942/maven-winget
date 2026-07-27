@@ -59,4 +59,5 @@ jobs:
           files: |
             artifacts/*
             manifests/generated/**
+            !manifests/generated/.gitkeep
           body: 'Draft release prepared from a verified Apache archive. Review artifacts, then run the publish verified Maven release workflow.'
