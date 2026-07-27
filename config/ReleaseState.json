@@ -1,8 +1,26 @@
 {
   "schemaVersion": 1,
   "channels": {
-    "stable": { "lastDiscovered": null, "lastVerified": null, "lastPublished": null },
-    "maven3-preview": { "lastDiscovered": null, "lastVerified": null, "lastPublished": null },
-    "maven4-preview": { "lastDiscovered": null, "lastVerified": null, "lastPublished": null }
+    "stable": {
+      "lastDiscovered": {
+        "version": "3.9.16",
+        "sourceUrl": "https://dlcdn.apache.org/maven/maven-3/3.9.16/binaries/apache-maven-3.9.16-bin.zip",
+        "checksumUrl": "https://dlcdn.apache.org/maven/maven-3/3.9.16/binaries/apache-maven-3.9.16-bin.zip.sha512",
+        "publishDate": "2026-07-27",
+        "discoveredAt": "2026-07-27T08:07:29.7480779Z"
+      },
+      "lastVerified": null,
+      "lastPublished": null
+    },
+    "maven3-preview": {
+      "lastDiscovered": null,
+      "lastVerified": null,
+      "lastPublished": null
+    },
+    "maven4-preview": {
+      "lastDiscovered": null,
+      "lastVerified": null,
+      "lastPublished": null
+    }
   }
 }
