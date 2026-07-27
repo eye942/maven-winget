@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "channels": {
+    "stable": { "lastDiscovered": null, "lastVerified": null, "lastPublished": null },
+    "maven3-preview": { "lastDiscovered": null, "lastVerified": null, "lastPublished": null },
+    "maven4-preview": { "lastDiscovered": null, "lastVerified": null, "lastPublished": null }
+  }
+}

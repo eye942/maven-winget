@@ -5,20 +5,38 @@ on:
 permissions: { contents: read, pull-requests: write }
 jobs:
   discover:
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [stable, maven3-preview, maven4-preview]
     runs-on: ubuntu-latest
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
-        with:
-          egress-policy: audit
+        with: { egress-policy: audit }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Check Apache metadata
-        id: update
+      - name: Discover from Apache download page
+        id: release
+        shell: pwsh
         run: |
-          v=$(curl --fail --silent --show-error https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml | sed -n 's:.*<release>\(.*\)</release>.*:\1:p')
-          echo "version=$v" >> "$GITHUB_OUTPUT"
+          $release = ./scripts/Get-MavenRelease.ps1 -Discover -Channel '${{ matrix.channel }}' | ConvertFrom-Json
+          "version=$($release.Version)" >> $env:GITHUB_OUTPUT
+          "source_url=$($release.SourceUrl)" >> $env:GITHUB_OUTPUT
+          "publish_date=$($release.PublishDate)" >> $env:GITHUB_OUTPUT
+      - name: Record the candidate
+        shell: pwsh
+        run: ./scripts/Update-Version.ps1 -MavenVersion '${{ steps.release.outputs.version }}' -Channel '${{ matrix.channel }}' -SourceUrl '${{ steps.release.outputs.source_url }}' -PublishDate '${{ steps.release.outputs.publish_date }}'
       - uses: peter-evans/create-pull-request@70a7d45d5a1a3a205ec28020775c0f9042c1e7f0
         with:
-          title: 'chore: review Apache Maven ${{ steps.update.outputs.version }}'
-          body: 'Detected from official Maven Central metadata. Review upstream distribution URL/checksum before release.'
-          branch: automation/maven-update
+          branch: automation/maven-${{ matrix.channel }}
+          delete-branch: true
+          title: 'chore(${{ matrix.channel }}): review Apache Maven ${{ steps.release.outputs.version }}'
+          commit-message: 'chore(${{ matrix.channel }}): stage Maven ${{ steps.release.outputs.version }}'
+          body: |
+            ## Maven release candidate
+            - Channel: `${{ matrix.channel }}`
+            - Upstream version: `${{ steps.release.outputs.version }}`
+            - Apache publish date: `${{ steps.release.outputs.publish_date }}`
+            - Official ZIP: ${{ steps.release.outputs.source_url }}
+
+            CI will independently download, verify the official SHA-512, build the MSI, and attach a release-preview bundle. Merge this PR to prepare a GitHub draft release; publication remains a maintainer action.

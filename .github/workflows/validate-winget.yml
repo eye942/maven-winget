@@ -12,4 +12,4 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - shell: pwsh
         run: |
-          if (Test-Path manifests/generated/Community.Maven) { winget validate --manifest manifests/generated/Community.Maven }
+          Get-ChildItem manifests/generated -Directory -ErrorAction SilentlyContinue | ForEach-Object { winget validate --manifest $_.FullName }
