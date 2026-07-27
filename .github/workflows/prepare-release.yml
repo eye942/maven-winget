@@ -2,15 +2,23 @@ name: prepare Maven draft release
 on:
   pull_request:
     types: [closed]
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Maven channel whose last discovered candidate should be prepared
+        required: true
+        type: choice
+        options: [stable, maven3-preview, maven4-preview]
 permissions: { contents: write }
 jobs:
   prepare:
     if: >-
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.event.pull_request.head.ref == 'automation/maven-stable' ||
-       github.event.pull_request.head.ref == 'automation/maven-maven3-preview' ||
-       github.event.pull_request.head.ref == 'automation/maven-maven4-preview')
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       (github.event.pull_request.head.ref == 'automation/maven-stable' ||
+        github.event.pull_request.head.ref == 'automation/maven-maven3-preview' ||
+        github.event.pull_request.head.ref == 'automation/maven-maven4-preview'))
     runs-on: windows-2025
     steps:
       - name: Harden runner
@@ -18,13 +26,20 @@ jobs:
         with: { egress-policy: audit }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
       - name: Read merged channel candidate
         id: candidate
         shell: pwsh
+        env:
+          MANUAL_CHANNEL: ${{ inputs.channel }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          $branch='${{ github.event.pull_request.head.ref }}'
-          $channel = if ($branch -eq 'automation/maven-maven3-preview') {'maven3-preview'} elseif ($branch -eq 'automation/maven-maven4-preview') {'maven4-preview'} else {'stable'}
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $channel=$env:MANUAL_CHANNEL
+          } else {
+            $branch=$env:PR_HEAD_REF
+            $channel = if ($branch -eq 'automation/maven-maven3-preview') {'maven3-preview'} elseif ($branch -eq 'automation/maven-maven4-preview') {'maven4-preview'} else {'stable'}
+          }
           $state=Get-Content -Raw config/ReleaseState.json | ConvertFrom-Json
           $candidate=$state.channels.$channel.lastDiscovered
           if ($null -eq $candidate -or [string]::IsNullOrWhiteSpace($candidate.version)) { throw "No merged candidate exists for $channel." }
