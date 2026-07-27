@@ -13,7 +13,13 @@
       "lastPublished": null
     },
     "maven3-preview": {
-      "lastDiscovered": null,
+      "lastDiscovered": {
+        "version": "3.10.0-rc-1",
+        "sourceUrl": "https://dlcdn.apache.org/maven/maven-3/3.10.0-rc-1/binaries/apache-maven-3.10.0-rc-1-bin.zip",
+        "checksumUrl": "https://dlcdn.apache.org/maven/maven-3/3.10.0-rc-1/binaries/apache-maven-3.10.0-rc-1-bin.zip.sha512",
+        "publishDate": "2026-07-27",
+        "discoveredAt": "2026-07-27T08:07:26.6544094Z"
+      },
       "lastVerified": null,
       "lastPublished": null
     },
