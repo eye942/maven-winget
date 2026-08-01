@@ -45,6 +45,7 @@ Describe 'Maven release helpers' {
  }
  It 'prepares draft releases only from trusted known automation branches' {
    $prepareWorkflow = Get-Content -Raw "$PSScriptRoot/../../.github/workflows/prepare-release.yml"
+   $prepareWorkflow | Should -Match 'target_commitish: \$\{\{ steps\.source\.outputs\.commit \}\}'
    $prepareWorkflow | Should -Match 'head\.repo\.full_name == github\.repository'
    $prepareWorkflow | Should -Match "head\.ref == 'automation/maven-stable'"
    $prepareWorkflow | Should -Match "head\.ref == 'automation/maven-maven3-preview'"
