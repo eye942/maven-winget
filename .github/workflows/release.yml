@@ -1,64 +1,58 @@
-name: publish verified Maven release
+name: submit published Maven release to WinGet
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
-      maven_version: { required: true, type: string, description: 'Exact upstream Maven version' }
-      channel: { required: true, type: choice, options: [stable, maven3-preview, maven4-preview], default: stable }
-      source_url: { required: false, type: string, description: 'Official dlcdn.apache.org ZIP override' }
-permissions: { contents: write }
+      release_tag:
+        description: Published Maven release tag to resubmit after recovery
+        required: true
+        type: string
+permissions: { contents: read }
+concurrency:
+  group: winget-submission-${{ github.event.release.id || inputs.release_tag }}
+  cancel-in-progress: false
 jobs:
-  release:
-    outputs:
-      tag: ${{ steps.build.outputs.tag }}
+  winget-submission:
     runs-on: windows-2025
+    environment: release
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with: { egress-policy: audit }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-        with: { dotnet-version: 8.0.x }
-      - name: Install WiX
-        shell: pwsh
-        run: |
-          dotnet tool install --global wix --version 7.0.0
-          & "$env:USERPROFILE\.dotnet\tools\wix.exe" eula accept wix7
-      - name: Build from verified Apache archive
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.release_tag }}
+      - name: Validate published release and derive candidate
+        id: candidate
         shell: pwsh
         env:
-          MAVEN_CHANNEL: ${{ inputs.channel }}
-          MAVEN_SOURCE_URL: ${{ inputs.source_url }}
-          MAVEN_VERSION: ${{ inputs.maven_version }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          ./scripts/Build-Installer.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -SourceUrl $env:MAVEN_SOURCE_URL
-          ./scripts/Generate-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL
-          ./scripts/Submit-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -DryRun | Format-List | Out-String | Write-Host
-          Get-FileHash artifacts/*.msi -Algorithm SHA256 | Format-List | Out-File artifacts/checksums.sha256
-          Get-FileHash artifacts/*.msi -Algorithm SHA512 | Format-List | Out-File artifacts/checksums.sha512
-          @{ SPDXID='SPDXRef-DOCUMENT'; name='maven-community-installer'; creationInfo=@{created=(Get-Date).ToUniversalTime().ToString('o')} } | ConvertTo-Json | Set-Content artifacts/sbom.spdx.json
           Import-Module ./scripts/MavenInstaller.Common.psm1 -Force
-          $tag = Get-ReleaseTag $env:MAVEN_VERSION $env:MAVEN_CHANNEL
-          "tag=$tag" >> $env:GITHUB_OUTPUT
-        id: build
-      - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
-        with:
-          tag_name: ${{ steps.build.outputs.tag }}
-          prerelease: ${{ inputs.channel != 'stable' }}
-          draft: false
-          files: |
-            artifacts/*
-            manifests/generated/**/*.yaml
-          body: 'Community-maintained MSI. Upstream archive verification and hashes are included in release-metadata.json.'
-  winget-submission:
-    needs: release
-    runs-on: windows-2025
-    environment: winget-submission
-    permissions: { contents: read }
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with: { egress-policy: audit }
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+          $tag = $env:RELEASE_TAG
+          if ($tag -match '^v(?<version>.+)$') {
+            $channel = 'stable'
+          } elseif ($tag -match '^maven3-preview-v(?<version>.+)$') {
+            $channel = 'maven3-preview'
+          } elseif ($tag -match '^maven4-preview-v(?<version>.+)$') {
+            $channel = 'maven4-preview'
+          } else {
+            throw "Unsupported Maven release tag '$tag'."
+          }
+          $version = $Matches['version']
+          Assert-MavenVersion $version
+          Assert-ChannelVersion -Version $version -Channel $channel
+          if ((Get-ReleaseTag $version $channel) -ne $tag) { throw "Release tag '$tag' does not match its Maven channel and version." }
+          $release = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json' } -Uri "https://api.github.com/repos/$env:REPOSITORY/releases/tags/$tag"
+          if ($release.draft) { throw "Release '$tag' is still a draft." }
+          $assetName = "maven-community-$channel-$version-x64.msi"
+          $asset = @($release.assets | Where-Object { $_.name -eq $assetName })
+          if ($asset.Count -ne 1 -or $asset[0].size -lt 1) { throw "Published release '$tag' does not contain a non-empty '$assetName' asset." }
+          "channel=$channel" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with: { dotnet-version: 6.0.x }
       - name: Download and verify WingetCreate
@@ -75,8 +69,8 @@ jobs:
       - name: Update and submit WinGet manifest
         shell: pwsh
         env:
-          MAVEN_CHANNEL: ${{ inputs.channel }}
-          MAVEN_VERSION: ${{ inputs.maven_version }}
+          MAVEN_CHANNEL: ${{ steps.candidate.outputs.channel }}
+          MAVEN_VERSION: ${{ steps.candidate.outputs.version }}
           WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
         run: |
           ./scripts/Submit-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -WingetCreatePath '${{ steps.wingetcreate.outputs.path }}'
