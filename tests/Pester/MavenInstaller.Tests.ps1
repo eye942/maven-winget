@@ -38,7 +38,7 @@ Describe 'Maven release helpers' {
  }
  It 'keeps WinGet submission out of pull-request workflows' {
    $releaseWorkflow = Get-Content -Raw "$PSScriptRoot/../../.github/workflows/release.yml"
-   $releaseWorkflow | Should -Match 'environment: winget-submission'
+   $releaseWorkflow | Should -Match 'environment: release'
    $releaseWorkflow | Should -Match 'WINGET_CREATE_GITHUB_TOKEN: \$\{\{ secrets\.WINGET_CREATE_GITHUB_TOKEN \}\}'
    $releaseWorkflow | Should -Not -Match '(?m)^\s*pull_request:'
    (Get-Content -Raw "$PSScriptRoot/../../.github/workflows/validate-winget.yml") | Should -Not -Match 'WINGET_CREATE_GITHUB_TOKEN'
