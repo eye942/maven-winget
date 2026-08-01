@@ -47,8 +47,7 @@ jobs:
           draft: false
           files: |
             artifacts/*
-            manifests/generated/**
-            !manifests/generated/.gitkeep
+            manifests/generated/**/*.yaml
           body: 'Community-maintained MSI. Upstream archive verification and hashes are included in release-metadata.json.'
   winget-submission:
     needs: release
