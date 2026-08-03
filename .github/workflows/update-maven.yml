@@ -1,6 +1,6 @@
 name: discover Maven updates
 on:
-  schedule: [{ cron: '23 6 * * 1' }]
+  schedule: [{ cron: '23 6 * * *' }]
   workflow_dispatch:
 permissions: { contents: read, pull-requests: write }
 jobs:
