@@ -53,8 +53,55 @@ jobs:
           if ($asset.Count -ne 1 -or $asset[0].size -lt 1) { throw "Published release '$tag' does not contain a non-empty '$assetName' asset." }
           "channel=$channel" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
+          "package_identifier=$(Get-PackageIdentifier $channel)" >> $env:GITHUB_OUTPUT
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with: { dotnet-version: 6.0.x }
+      - name: Download and validate published WinGet manifests
+        id: manifest
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          REPOSITORY: ${{ github.repository }}
+          PACKAGE_IDENTIFIER: ${{ steps.candidate.outputs.package_identifier }}
+          MAVEN_VERSION: ${{ steps.candidate.outputs.version }}
+          MAVEN_CHANNEL: ${{ steps.candidate.outputs.channel }}
+        run: |
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json' }
+          $release = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$env:REPOSITORY/releases/tags/$env:RELEASE_TAG"
+          $manifestDirectory = Join-Path $env:RUNNER_TEMP 'winget-manifests'
+          New-Item -ItemType Directory -Force -Path $manifestDirectory | Out-Null
+          $names = @(
+            "$env:PACKAGE_IDENTIFIER.yaml",
+            "$env:PACKAGE_IDENTIFIER.locale.en-US.yaml",
+            "$env:PACKAGE_IDENTIFIER.installer.yaml"
+          )
+          foreach ($name in $names) {
+            $asset = @($release.assets | Where-Object { $_.name -eq $name })
+            if ($asset.Count -ne 1 -or $asset[0].size -lt 1) { throw "Published release '$env:RELEASE_TAG' must contain exactly one non-empty '$name' asset." }
+            Invoke-WebRequest -Headers @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/octet-stream' } -Uri $asset[0].url -OutFile (Join-Path $manifestDirectory $name)
+          }
+          $downloaded = @(Get-ChildItem -LiteralPath $manifestDirectory -Filter '*.yaml' -File)
+          $actualNames = @($downloaded.Name | Sort-Object) -join '|'
+          $expectedNames = @($names | Sort-Object) -join '|'
+          if ($downloaded.Count -ne 3 -or $actualNames -ne $expectedNames) { throw 'Downloaded WinGet manifest asset names do not match the expected release assets.' }
+          foreach ($file in $downloaded) {
+            $yaml = Get-Content -LiteralPath $file.FullName -Raw
+            if ($yaml -notmatch "(?m)^PackageIdentifier:\s*$([regex]::Escape($env:PACKAGE_IDENTIFIER))\s*$") { throw "$($file.Name) has an unexpected PackageIdentifier." }
+            if ($yaml -notmatch "(?m)^PackageVersion:\s*$([regex]::Escape($env:MAVEN_VERSION))\s*$") { throw "$($file.Name) has an unexpected PackageVersion." }
+          }
+          $installer = Get-Content -LiteralPath (Join-Path $manifestDirectory "$env:PACKAGE_IDENTIFIER.installer.yaml") -Raw
+          $msiUrl = "https://github.com/$env:REPOSITORY/releases/download/$env:RELEASE_TAG/maven-community-$env:MAVEN_CHANNEL-$env:MAVEN_VERSION-x64.msi"
+          $urls = @([regex]::Matches($installer, '(?m)^\s*InstallerUrl:\s*(.+?)\s*$') | ForEach-Object { $_.Groups[1].Value })
+          if ($urls.Count -ne 2 -or @($urls | Where-Object { $_ -ne $msiUrl }).Count -ne 0) { throw 'Installer manifest must contain two matching published MSI URLs.' }
+          $architectures = @([regex]::Matches($installer, '(?m)^\s*-\s+Architecture:\s*(.+?)\s*$') | ForEach-Object { $_.Groups[1].Value })
+          if ($architectures.Count -ne 2 -or @($architectures | Where-Object { $_ -ne 'x64' }).Count -ne 0) { throw 'Installer manifest must contain exactly two x64 installers.' }
+          $scopes = @([regex]::Matches($installer, '(?m)^\s*Scope:\s*(.+?)\s*$') | ForEach-Object { $_.Groups[1].Value })
+          $actualScopes = @($scopes | Sort-Object) -join '|'
+          if ($scopes.Count -ne 2 -or $actualScopes -ne 'machine|user') { throw 'Installer manifest must contain user and machine scopes exactly once.' }
+          winget validate --manifest $manifestDirectory
+          if ($LASTEXITCODE -ne 0) { throw 'winget validate rejected the published manifest assets.' }
+          "directory=$manifestDirectory" >> $env:GITHUB_OUTPUT
       - name: Download and verify WingetCreate
         shell: pwsh
         run: |
@@ -66,11 +113,11 @@ jobs:
           if ($actualHash -ne $expectedHash) { throw "WingetCreate SHA-256 mismatch. Expected $expectedHash; got $actualHash." }
           "path=$path" >> $env:GITHUB_OUTPUT
         id: wingetcreate
-      - name: Update and submit WinGet manifest
+      - name: Submit published WinGet manifest
         shell: pwsh
         env:
-          MAVEN_CHANNEL: ${{ steps.candidate.outputs.channel }}
           MAVEN_VERSION: ${{ steps.candidate.outputs.version }}
+          PACKAGE_IDENTIFIER: ${{ steps.candidate.outputs.package_identifier }}
           WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
         run: |
-          ./scripts/Submit-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -WingetCreatePath '${{ steps.wingetcreate.outputs.path }}'
+          ./scripts/Submit-WingetManifest.ps1 -ManifestDirectory '${{ steps.manifest.outputs.directory }}' -PackageIdentifier $env:PACKAGE_IDENTIFIER -Version $env:MAVEN_VERSION -WingetCreatePath '${{ steps.wingetcreate.outputs.path }}'

@@ -62,7 +62,9 @@ jobs:
           & "$env:USERPROFILE\.dotnet\tools\wix.exe" eula accept wix7
           ./scripts/Build-Installer.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -SourceUrl $env:MAVEN_SOURCE_URL
           ./scripts/Generate-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL
-          ./scripts/Submit-WingetManifest.ps1 -MavenVersion $env:MAVEN_VERSION -Channel $env:MAVEN_CHANNEL -DryRun | Format-List | Out-String | Write-Host
+          Import-Module ./scripts/MavenInstaller.Common.psm1 -Force
+          $packageIdentifier = (Get-MavenChannelConfiguration $env:MAVEN_CHANNEL).PackageIdentifier
+          ./scripts/Submit-WingetManifest.ps1 -ManifestDirectory "manifests/generated/$packageIdentifier/$env:MAVEN_VERSION" -PackageIdentifier $packageIdentifier -Version $env:MAVEN_VERSION -DryRun | Format-List | Out-String | Write-Host
           Get-FileHash artifacts/*.msi -Algorithm SHA256 | Format-List | Out-File artifacts/checksums.sha256
           Get-FileHash artifacts/*.msi -Algorithm SHA512 | Format-List | Out-File artifacts/checksums.sha512
           @{ SPDXID='SPDXRef-DOCUMENT'; name='maven-community-installer'; creationInfo=@{created=(Get-Date).ToUniversalTime().ToString('o')} } | ConvertTo-Json | Set-Content artifacts/sbom.spdx.json
