@@ -1,44 +1,62 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string]$MavenVersion,
-    [ValidateSet('stable', 'maven3-preview', 'maven4-preview')][string]$Channel,
+    [Parameter(Mandatory)][string]$ManifestDirectory,
+    [Parameter(Mandatory)][string]$PackageIdentifier,
+    [Parameter(Mandatory)][string]$Version,
     [string]$WingetCreatePath,
-    [switch]$DryRun
+    [switch]$DryRun,
+    # Test-only override: when supplied, the package is treated as existing with these versions.
+    [string[]]$ExistingVersions
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-Import-Module "$PSScriptRoot/MavenInstaller.Common.psm1" -Force
-
-if (-not $Channel) {
-    $Channel = Get-MavenChannelForVersion $MavenVersion
+if (-not (Test-Path -LiteralPath $ManifestDirectory -PathType Container)) {
+    throw "ManifestDirectory must be an existing directory: $ManifestDirectory"
 }
-Assert-ChannelVersion -Version $MavenVersion -Channel $Channel
+if (-not $DryRun -and [string]::IsNullOrWhiteSpace($env:WINGET_CREATE_GITHUB_TOKEN)) {
+    throw 'WINGET_CREATE_GITHUB_TOKEN is required for submission. Configure it as a secret in the protected release GitHub Environment.'
+}
 
-$config = Get-RepositoryConfig
-$packageIdentifier = Get-PackageIdentifier $Channel
-$tag = Get-ReleaseTag $MavenVersion $Channel
-$assetName = "maven-community-$Channel-$MavenVersion-x64.msi"
-$releaseAssetUrl = "$($config.RepositoryUrl)/releases/download/$tag/$assetName"
-$installerUrls = @(
-    "$releaseAssetUrl|x64|user",
-    "$releaseAssetUrl|x64|machine"
-)
+function Get-SubmissionClassification {
+    param([string[]]$Versions, [bool]$PackageExists)
 
-$arguments = @(
-    'update', $packageIdentifier,
-    '--urls'
-) + $installerUrls + @(
-    '--version', $MavenVersion,
-    '--submit',
-    '--no-open'
-)
+    if (-not $PackageExists) { return 'New package' }
+    if ($Versions -notcontains $Version) { return 'Add version' }
+    return 'Update version'
+}
+
+$packageExists = $false
+$knownVersions = @()
+if ($PSBoundParameters.ContainsKey('ExistingVersions')) {
+    $packageExists = $true
+    $knownVersions = @($ExistingVersions)
+} elseif (-not $DryRun) {
+    if ([string]::IsNullOrWhiteSpace($WingetCreatePath) -or -not (Test-Path -LiteralPath $WingetCreatePath -PathType Leaf)) {
+        throw 'WingetCreatePath must point to the verified wingetcreate.exe downloaded by the release workflow.'
+    }
+
+    & $WingetCreatePath show $PackageIdentifier 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        $packageExists = $true
+        & $WingetCreatePath show $PackageIdentifier --version $Version 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) { $knownVersions = @($Version) }
+    }
+}
+
+$classification = Get-SubmissionClassification -Versions $knownVersions -PackageExists $packageExists
+$prTitle = "$classification`: $PackageIdentifier version $Version"
+$arguments = @('submit', '--prtitle', $prTitle, '--no-open')
+if ($classification -eq 'Update version') { $arguments += @('--replace', $Version) }
+$arguments += $ManifestDirectory
 
 $result = [pscustomobject]@{
-    PackageIdentifier = $packageIdentifier
-    ReleaseAssetUrl = $releaseAssetUrl
-    InstallerUrls = $installerUrls
+    PackageIdentifier = $PackageIdentifier
+    Version = $Version
+    ManifestDirectory = $ManifestDirectory
+    Classification = $classification
+    PrTitle = $prTitle
     Arguments = $arguments
 }
 
@@ -47,22 +65,9 @@ if ($DryRun) {
     return
 }
 
-if ([string]::IsNullOrWhiteSpace($env:WINGET_CREATE_GITHUB_TOKEN)) {
-    throw 'WINGET_CREATE_GITHUB_TOKEN is required for submission. Configure it as a secret in the protected winget-submission GitHub Environment.'
-}
-if ([string]::IsNullOrWhiteSpace($WingetCreatePath) -or -not (Test-Path -LiteralPath $WingetCreatePath -PathType Leaf)) {
-    throw 'WingetCreatePath must point to the verified wingetcreate.exe downloaded by the release workflow.'
-}
-
-# Check before update so an unbootstrapped identity has a useful, non-interactive failure.
-& $WingetCreatePath show $packageIdentifier
-if ($LASTEXITCODE -ne 0) {
-    throw "Upstream package '$packageIdentifier' was not found. Bootstrap it once with 'wingetcreate new' using manifests/generated/$packageIdentifier/$MavenVersion, submit and merge that PR, then rerun a later published release."
-}
-
 & $WingetCreatePath @arguments
 if ($LASTEXITCODE -ne 0) {
-    throw "WingetCreate failed while updating '$packageIdentifier' version '$MavenVersion'. Check the action log for duplicate-version, installer-download, or winget-pkgs validation errors."
+    throw "WingetCreate failed while submitting '$PackageIdentifier' version '$Version'. Check the action log for manifest validation or winget-pkgs submission errors."
 }
 
 $result
