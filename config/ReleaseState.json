@@ -7,7 +7,7 @@
         "sourceUrl": "https://dlcdn.apache.org/maven/maven-3/3.9.16/binaries/apache-maven-3.9.16-bin.zip",
         "checksumUrl": "https://dlcdn.apache.org/maven/maven-3/3.9.16/binaries/apache-maven-3.9.16-bin.zip.sha512",
         "publishDate": "2026-08-01",
-        "discoveredAt": "2026-08-01T22:23:40.9558310Z"
+        "discoveredAt": "2026-08-01T22:23:40.955831Z"
       },
       "lastVerified": null,
       "lastPublished": null
@@ -17,8 +17,8 @@
         "version": "3.10.0-rc-1",
         "sourceUrl": "https://dlcdn.apache.org/maven/maven-3/3.10.0-rc-1/binaries/apache-maven-3.10.0-rc-1-bin.zip",
         "checksumUrl": "https://dlcdn.apache.org/maven/maven-3/3.10.0-rc-1/binaries/apache-maven-3.10.0-rc-1-bin.zip.sha512",
-        "publishDate": "2026-08-01",
-        "discoveredAt": "2026-08-01T22:23:43.1411572Z"
+        "publishDate": "2026-08-04",
+        "discoveredAt": "2026-08-05T03:47:37.8773598Z"
       },
       "lastVerified": null,
       "lastPublished": null
